@@ -29,13 +29,13 @@ A DynamoDB table is also create to verify the solution is working by recording w
 ## Walkthrough
 
 1.	Download the zip file code for this repository [here](zip/connect-agent-hold-stop-recording.zip).
-2.	Create a S3 solution bucket in your AWS account.
-3.	Upload he Zip file downloaded in step 1
-5.	Run the CFT located [here](cft/connect-agent-event-cft.yaml).
-6.	Following parameters needed for the CFT:
+2.	Create an S3 solution bucket within the same region where the Amazon Connect instance is located.
+3.	Upload the zip file downloaded in step one to the new bucket. 
+4.	Run the CloudFormation Template located [here](cft/connect-agent-event-cft.yaml).
+5.	Following parameters needed for the CloudFormation Template:
     1.	InstanceARN: ARN of the Amazon Connect instance.
     2.	StreamARN: ARN of the Kinesis stream used for Agent Events. If the Connect instance is not currently streaming Agent Events, see [here](https://docs.aws.amazon.com/connect/latest/adminguide/agent-event-streams.html) for steps on how to enable Agent Event Streaming.
-    3.	SolutionSourceBucket: Solution bucket created in step 3
+    3.	SolutionSourceBucket: S3 Bucket created in step three.
 
 ![CloudFormation Template Screenshot](/images/stack_details.png)
 
@@ -47,7 +47,7 @@ A DynamoDB table is also create to verify the solution is working by recording w
 3.	From the CCP, place the call on hold. Speak into the mic as the agent.
 4.  From the CCP, remove the call from hold. Speak into the mic as the agent and then end the call.
 5.  Navigate to Contact Seach within the Amazon Connect Console and locate the call. Play the call recording to confirm that no audio was captured while the call was on hold.
-6.  Navigate to Dynamo DB  and explore the table items of the **HoldEventLogTable**. Confirm ONHOLD and OFFHOLD events exist.
+6.  Navigate to Dynamo DB  and explore the table items of the **HoldEventLogTable**. Confirm CONNECTED and CONNECTED_ONHOLD events exist.
 
 ## Conclusion
 
