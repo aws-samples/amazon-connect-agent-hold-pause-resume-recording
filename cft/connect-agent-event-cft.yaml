@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Blog - Stop recording when Agent puts customer on hold using Agent Event Stream'
+Parameters:
+  StreamARN:
+    Type: String
+    Description: Kinesis data stream ARN
+  SolutionSourceBucket:
+    Type: String
+    Description: Source Bucket Name
+  InstanceARN:
+    Type: String
+    Description: InstanceARN
+
+#######################
+# Globals
+#######################
+Globals:
+  Function:
+    Runtime: nodejs16.x
+    Architectures:
+      - x86_64
+    MemorySize: 128
+    Timeout: 600
+    Environment:
+      Variables:
+        HoldEventLogTable: !Ref HoldEventLogTable
+        InstanceARN: !Ref InstanceARN
+
+#######################
+# RESOURCES
+#######################
+Resources:
+
+#######################
+# Lambda IAM Role
+#######################
+  AgentEventLambdaIamRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName : !Sub '${AWS::StackName}-${AWS::AccountId}-AgentEventLambdaIamRole'
+      Policies:
+        - PolicyName: logs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: kinesis
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'kinesis:ListStreams'
+                  - 'kinesis:DescribeStreamSummary'
+                  - 'kinesis:ListShards'
+                  - 'kinesis:DescribeStreamConsumer'
+                  - 'kinesis:GetShardIterator'
+                  - 'kinesis:GetRecords'
+                  - 'kinesis:DescribeStream'
+                  - 'kinesis:ListStreamConsumers'
+                Resource: 
+                  - !Ref StreamARN
+        - PolicyName: dynamodb
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:PutItem'
+                Resource: 
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${HoldEventLogTable}'
+        - PolicyName: connect
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'connect:StartContactRecording'
+                  - 'connect:StopContactRecording'
+                  - 'connect:ResumeContactRecording'
+                  - 'connect:SuspendContactRecording'
+                Resource:
+                  - !Sub '${InstanceARN}/contact/*'
+      Path: /
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+#######################
+# Lambda Permission
+#######################
+  PermissionForKinesisToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref "AgentEventLambda"
+      Action: "lambda:InvokeFunction"
+      Principal: "kinesis.amazonaws.com"
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Ref StreamARN
+
+#######################
+# Lambda Function
+#######################
+  AgentEventLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-${AWS::AccountId}-AgentEventLambda'
+      Handler: index.handler
+      CodeUri: 
+        Bucket: !Ref SolutionSourceBucket
+        Key: connect-agent-hold-stop-recording.zip
+      Description: AgentEventLambda
+      Role: !GetAtt AgentEventLambdaIamRole.Arn
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !Ref StreamARN
+            BatchSize: 1
+            StartingPosition: LATEST
+
+#######################
+# Dynamodb Table 
+#######################
+  HoldEventLogTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: eventId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TableName: HoldEventLogTable
