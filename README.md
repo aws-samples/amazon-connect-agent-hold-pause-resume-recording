@@ -2,13 +2,25 @@
 
 ## Introduction
 
-Amazon Connect offers the ability to record calls that take place between an agent and caller. This includes calls that are placed on hold. However, there are some cases where a contact center might not want to record the call while a caller is placed on hold. Some examples include:
+Amazon Connect offers the ability to record calls that take place between an agent and caller, including when calls are placed on hold. However, there are scenarios where contact centers might prefer to pause recording during hold periods. This solution addresses that need by automatically pausing and resuming call recordings based on hold status.
 
-1.  Privacy concerns for agent conversations that take place while the call is on hold.
-2.  Supervisors and QA reviewing calls and not being able to easily distinguish when a call has been placed on hold.
-3.  If call transcripts are enabled, supervisors might search for words spoken to callers. Results could include calls where the searched words were actually spoken while the caller was on hold.
-4.  If sentiment analsysis is enabled, audio from either party while the call is on hold could adversely affect the sentiment data.
+### What This Solution Does
 
+This solution automatically pauses call recording when an agent places a caller on hold and resumes recording when the call is taken off hold. It achieves this by:
+
+1. Utilizing Amazon Kinesis to stream Agent Events from Amazon Connect.
+2. Employing an AWS Lambda function to monitor these events for hold status changes.
+3. Interacting with the Amazon Connect API to suspend and resume call recordings in real-time.
+4. Logging hold events in Amazon DynamoDB for verification and auditing purposes.
+
+By implementing this solution, contact centers can address several key concerns:
+
+1. Privacy concerns: Prevent recording of agent conversations that occur while a caller is on hold.
+2. Quality assurance efficiency: Enable supervisors and QA teams to easily distinguish between active call segments and hold periods during review.
+3. Improved transcript accuracy: Ensure that call transcripts and word searches only include relevant customer interactions, excluding hold periods.
+4. Enhanced sentiment analysis: Prevent hold music or background conversations from influencing sentiment analysis results.
+
+This serverless architecture provides a scalable, cost-effective way to enhance call recording management in Amazon Connect, improving both operational efficiency and compliance with privacy standards.
 
 ## Prerequisites
 
@@ -52,3 +64,7 @@ A DynamoDB table is also create to verify the solution is working by recording w
 ## Conclusion
 
 In this guide, you learned how to stream Amazon Connect Agent Events in order to pause and resume call recordings for calls that are placed on hold.
+
+> [!WARNING]
+> This solution not only pauses and resumes audio call recordings but also affects screen recordings in Amazon Connect. When call recording is suspended during hold periods, any active screen recording will also be paused simultaneously.
+
